@@ -5,7 +5,7 @@ The project implements a program that solves the **N-Puzzle problem** using the 
 
 Here,  
 - \( n = k^2 - 1 \),  
-- \( k = 3, 4, 5, \dots \)
+- \( k = 3, 4, 5, ...\)
 
 The program should determine the optimal sequence of moves to reach the goal configuration from a given initial configuration.
 
