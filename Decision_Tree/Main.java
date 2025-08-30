@@ -189,75 +189,82 @@ public class Main {
     public static void main(String[] args) {
         if (args.length != 3 && args.length != 2) {
             System.out.println("Usage: java Main <criterion> <maxDepth> <dataset>");
-            System.out.println("Or: java Main <criterion> <maxDepth> for full experiment on Iris");
+            System.out.println("Or: java Main <criterion> <maxDepth> for full experiment on dataset");
             return;
         }
 
         List<Example> dataset = new ArrayList<>();
         Map<Integer, Map<String, Integer>> categoricalMaps = new HashMap<>();
-        boolean isAdult = false;
-        int numFeatures = 4;
-
-        String datasetFile = "Datasets/Iris.csv";
-        if (args.length == 3) {
-            datasetFile = args[2];
-            if (datasetFile.toLowerCase().contains("adult")) isAdult = true;
-        }
-        List<Integer> attrs ;
+        List<Integer> attrs = new ArrayList<>();
+        int numFeatures = 0;
+        int labelIndex = -1;
+        String datasetFile = (args.length == 3) ? args[2] : "Datasets/Iris.csv";
 
         try (BufferedReader br = new BufferedReader(new FileReader(datasetFile))) {
-            if (!isAdult) {
-                br.readLine();
-                String line;
-                while ((line = br.readLine()) != null) {
-                    String[] parts = line.split(",");
-                    double[] attrsArr = new double[4];
-                    for (int i = 0; i < 4; i++) {
-                        attrsArr[i] = Double.parseDouble(parts[i + 1]);
-                    }
-                    dataset.add(new Example(attrsArr, parts[5]));
-                }
-                attrs = Arrays.asList(0, 1, 2, 3);
-                numFeatures = 4;
-            } 
-            else 
-            {
+            String headerLine = br.readLine();
+            if (headerLine == null) {
+                System.out.println("Empty dataset file.");
+                return;
+            }
+            String[] headers = headerLine.split(",");
+            numFeatures = headers.length - 1;
+            labelIndex = headers.length - 1; // Default: last column is label
 
-                attrs = new ArrayList<>();
-                String line;
-                List<List<String>> rawData = new ArrayList<>();
-                while ((line = br.readLine()) != null) {
-                    String[] parts = line.trim().split(",\\s*");
-                    if (parts.length != 15) continue;
-                    boolean skip = false;
-                    for (String s : parts) if (s.equals("?")) skip = true;
-                    if (skip) continue;
-                    rawData.add(Arrays.asList(parts));
-                }
-                int[] isCat = {1, 3, 5, 6, 7, 8, 9, 13};
-                for (int i : isCat) categoricalMaps.put(i, new HashMap<>());
-                for (List<String> row : rawData) {
-                    for (int i : isCat) {
-                        Map<String, Integer> map = categoricalMaps.get(i);
-                        if (!map.containsKey(row.get(i))) {
-                            map.put(row.get(i), map.size());
-                        }
-                    }
-                }
-                numFeatures = 14;
-                for (int i = 0; i < numFeatures; i++) attrs.add(i);
-                for (List<String> row : rawData) {
-                    double[] attrsArr = new double[numFeatures];
-                    for (int i = 0; i < numFeatures; i++) {
-                        if (categoricalMaps.containsKey(i)) {
-                            attrsArr[i] = categoricalMaps.get(i).get(row.get(i));
-                        } else {
-                            attrsArr[i] = Double.parseDouble(row.get(i));
-                        }
-                    }
-                    dataset.add(new Example(attrsArr, row.get(14)));
+            // Detect categorical columns by trying to parse first data row
+            String firstDataLine = br.readLine();
+            if (firstDataLine == null) {
+                System.out.println("No data in dataset file.");
+                return;
+            }
+            String[] firstParts = firstDataLine.split(",");
+            boolean[] isCategorical = new boolean[headers.length];
+            for (int i = 0; i < headers.length; i++) {
+                if (i == labelIndex) continue;
+                try {
+                    Double.parseDouble(firstParts[i]);
+                    isCategorical[i] = false;
+                } catch (NumberFormatException ex) {
+                    isCategorical[i] = true;
+                    categoricalMaps.put(i, new HashMap<>());
                 }
             }
+            // Add first data row
+            double[] attrsArr = new double[numFeatures];
+            int ai = 0;
+            for (int i = 0; i < headers.length; i++) {
+                if (i == labelIndex) continue;
+                if (isCategorical[i]) {
+                    Map<String, Integer> map = categoricalMaps.get(i);
+                    String val = firstParts[i];
+                    if (!map.containsKey(val)) map.put(val, map.size());
+                    attrsArr[ai++] = map.get(val);
+                } else {
+                    attrsArr[ai++] = Double.parseDouble(firstParts[i]);
+                }
+            }
+            dataset.add(new Example(attrsArr, firstParts[labelIndex]));
+
+            // Add rest of data
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length != headers.length) continue;
+                attrsArr = new double[numFeatures];
+                ai = 0;
+                for (int i = 0; i < headers.length; i++) {
+                    if (i == labelIndex) continue;
+                    if (isCategorical[i]) {
+                        Map<String, Integer> map = categoricalMaps.get(i);
+                        String val = parts[i];
+                        if (!map.containsKey(val)) map.put(val, map.size());
+                        attrsArr[ai++] = map.get(val);
+                    } else {
+                        attrsArr[ai++] = Double.parseDouble(parts[i]);
+                    }
+                }
+                dataset.add(new Example(attrsArr, parts[labelIndex]));
+            }
+            for (int i = 0; i < numFeatures; i++) attrs.add(i);
         } catch (IOException e) {
             e.printStackTrace();
             return;
@@ -370,8 +377,6 @@ public class Main {
                     System.out.println("criterion,maxDepth,avgAccuracy,avgNodes,avgDepth");
                     System.out.printf("%s,%d,%.4f,%.1f,%.1f\n",
                         criterion, maxDepth, totalAccuracy / numRuns, totalNodes / numRuns, totalDepth / numRuns);
-                    
-
                 }
             }
             executor.shutdown();
