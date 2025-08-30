@@ -15,11 +15,13 @@ The goal of this project is to solve the **Maximum Cut (MAX-CUT) problem** for u
 
 ## Problem Description
 
-Given an undirected graph \(G = (V, E)\) with weights \(w_{uv}\) on edges \((u, v) \in E\), the **MAX-CUT problem** aims to find a subset \(S \subset V\) such that the cut weight  
+Given an undirected graph \(G = (V, E)\) with weights \(w_{uv}\) on edges \((u, v) \in E\), the **MAX-CUT problem** aims to find a subset \(S \subset V\) such that 
 
-\[
+The weight of the cut is:
+
+$$
 w(S, \bar{S}) = \sum_{u \in S, v \in \bar{S}} w_{uv}
-\]
+$$
 
 is maximized.  
 
